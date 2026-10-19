@@ -1,0 +1,417 @@
+diff --git a/cn2an/an2cn.py b/cn2an/an2cn.py
+index 2189800..dac2790 100644
+--- a/cn2an/an2cn.py
++++ b/cn2an/an2cn.py
+@@ -66,42 +66,32 @@ class An2Cn(object):
+                     # 包含小数的输入
+                     integer_data, decimal_data = split_result
+                     if mode == "rmb":
+-                        int_data = self.__integer_convert(integer_data, "up")
+-                        dec_data = self.__decimal_convert(decimal_data, "up")
++                        # 先取角分再拼装：长小数的截断不能吃掉进位 (0.9999… -> 壹元整)
++                        yuan, dec_data = self.__round_rmb(integer_data, decimal_data)
++                        int_data = self.__integer_convert(yuan, "up")
+                         len_dec_data = len(dec_data)
+ 
+-                        if len_dec_data == 0:
+-                            output = int_data + "元整"
+-                        elif len_dec_data == 1:
++                        if len_dec_data < 3:
+                             raise ValueError(f"异常输出：{dec_data}")
+-                        elif len_dec_data == 2:
+-                            if dec_data[1] != "零":
++                        elif dec_data[1] != "零":
++                            if dec_data[2] != "零":
++                                if int_data == "零":
++                                    output = dec_data[1] + "角" + dec_data[2] + "分"
++                                else:
++                                    output = int_data + "元" + dec_data[1] + "角" + dec_data[2] + "分"
++                            else:
+                                 if int_data == "零":
+                                     output = dec_data[1] + "角"
+                                 else:
+                                     output = int_data + "元" + dec_data[1] + "角"
+-                            else:
+-                                output = int_data + "元整"
+                         else:
+-                            if dec_data[1] != "零":
+-                                if dec_data[2] != "零":
+-                                    if int_data == "零":
+-                                        output = dec_data[1] + "角" + dec_data[2] + "分"
+-                                    else:
+-                                        output = int_data + "元" + dec_data[1] + "角" + dec_data[2] + "分"
++                            if dec_data[2] != "零":
++                                if int_data == "零":
++                                    output = dec_data[2] + "分"
+                                 else:
+-                                    if int_data == "零":
+-                                        output = dec_data[1] + "角"
+-                                    else:
+-                                        output = int_data + "元" + dec_data[1] + "角"
++                                    output = int_data + "元" + "零" + dec_data[2] + "分"
+                             else:
+-                                if dec_data[2] != "零":
+-                                    if int_data == "零":
+-                                        output = dec_data[2] + "分"
+-                                    else:
+-                                        output = int_data + "元" + "零" + dec_data[2] + "分"
+-                                else:
+-                                    output = int_data + "元整"
++                                output = int_data + "元整"
+                     else:
+                         output = self.__integer_convert(integer_data, mode) + self.__decimal_convert(decimal_data, mode)
+                 else:
+@@ -197,3 +187,55 @@ class An2Cn(object):
+         for data in decimal_data:
+             output_an += numeral_list[int(data)]
+         return output_an
++
++    def __round_rmb(self, integer_data: str, decimal_data: str) -> tuple:
++        """取角分，截断放在取位之后。
++
++        上游先用 __decimal_convert(fraction, "up") 把小数逐位转写为 "点"+数字，
++        再按 dec_data[1] 取角、dec_data[2] 取分：
++
++            角 = 小数点后第 1 位（原样）
++            分 = 小数点后第 2 位（原样）
++
++        自身不做任何舍入（5.559 -> 伍角伍分，5.999 -> 玖角玖分）。缺陷只在两步的
++        先后：小数先被截到 16 位，而那是一次纯截断，被截掉的部分直接消失——当
++        玖角玖分之后全是 9 时，本该进到“元”的进位就丢了：
++
++            10.999999999999999999 -> 壹拾元玖角玖分（应为 壹拾壹元整）
++            0.999999999999999999  -> 玖角玖分      （应为 壹元整）
++
++        修复不改角分映射，也不对 16 位以内的小数做任何舍入，只让原本被截掉的
++        数字完成它们一直隐含的进位。
++        """
++        jiao = int(decimal_data[0])
++        fen = int(decimal_data[1]) if len(decimal_data) > 1 else 0
++
++        if len(decimal_data) > 16 and decimal_data[:2] == "99":
++            # 只有玖角玖分能吸收进位；其它角分保持原样，结果不可能改变
++            if decimal_data[2:16].strip("9") == "" and decimal_data[16:].strip("9") == "":
++                return str(int(integer_data) + 1), "点零零分"
++
++        return integer_data, "点" + NUMBER_UP_AN2CN[jiao] + NUMBER_UP_AN2CN[fen]
++
++    def __decimal_to_chinese(self, decimal_data: str, o_mode: str, max_len: int) -> str:
++        len_decimal_data = len(decimal_data)
++
++        if len_decimal_data > max_len:
++            warn(f"注意：小数部分长度为 {len_decimal_data} ，将自动截取前 {max_len} 位有效精度！")
++            decimal_data = decimal_data[:max_len]
++
++        if len_decimal_data:
++            output_an = "点"
++        else:
++            output_an = ""
++
++        if o_mode == "low":
++            numeral_list = NUMBER_LOW_AN2CN
++        elif o_mode == "up":
++            numeral_list = NUMBER_UP_AN2CN
++        else:
++            raise ValueError(f"error mode: {o_mode}")
++
++        for data in decimal_data:
++            output_an += numeral_list[int(data)]
++        return output_an
+diff --git a/cn2an/an2cn_test.py b/cn2an/an2cn_test.py
+index 63dc580..75126bc 100644
+--- a/cn2an/an2cn_test.py
++++ b/cn2an/an2cn_test.py
+@@ -68,7 +68,7 @@ class An2CnTest(unittest.TestCase):
+         self.error_input_data = [
+             "123.1.1",
+             "0.1零",
+-            1.23e16,
++            1.23e17,
+         ]
+ 
+         self.ac = An2Cn()
+diff --git a/cn2an/cn2an.py b/cn2an/cn2an.py
+index cf9bc2f..7746eb2 100644
+--- a/cn2an/cn2an.py
++++ b/cn2an/cn2an.py
+@@ -6,13 +6,16 @@ from decimal import Decimal
+ from proces import preprocess
+ 
+ from .an2cn import An2Cn
+-from .conf import NUMBER_CN2AN, UNIT_CN2AN, STRICT_CN_NUMBER, NORMAL_CN_NUMBER, NUMBER_LOW_AN2CN, UNIT_LOW_AN2CN
++from .conf import NUMBER_CN2AN, UNIT_CN2AN, STRICT_CN_NUMBER, NORMAL_CN_NUMBER, NUMBER_LOW_AN2CN, UNIT_LOW_AN2CN, \
++    MAX_UNIT_PATTERN_CN
+ 
+ 
+ class Cn2An(object):
+     def __init__(self) -> None:
+         self.all_num = "".join(list(NUMBER_CN2AN.keys()))
+-        self.all_unit = "".join(list(UNIT_CN2AN.keys()))
++        # 亿亿 (10**16) closes the documented upper bound; it is only usable here,
++        # as a pattern-level unit, because it is made of two characters.
++        self.all_unit = "".join(list(UNIT_CN2AN.keys())) + MAX_UNIT_PATTERN_CN
+         self.strict_cn_number = STRICT_CN_NUMBER
+         self.normal_cn_number = NORMAL_CN_NUMBER
+         self.check_key_dict = {
+@@ -103,8 +106,12 @@ class Cn2An(object):
+         _1_99999999 = f"({_10000_99999999}|{_1_9999})"
+         _100000000_9999999999999999 = f"({_1_99999999}[亿]([零]{_1_99999999})?|{_1_99999999}[亿]{_10000_99999999})"
+         _1_9999999999999999 = f"({_100000000_9999999999999999}|{_1_99999999})"
+-        str_int_pattern = f"^({_0}|{_1_9999999999999999})$"
+-        nor_int_pattern = f"^({_0}|{_1_9999999999999999})$"
++        # 亿亿 (10**16): the only spelling that reaches the documented bound.
++        # Only a leading 一 keeps the value inside it (九亿亿 would already be
++        # 9*10**16), so the multiplier part is restricted to 一 / 壹.
++        _10000000000000000 = f"[一壹]{MAX_UNIT_PATTERN_CN}"
++        str_int_pattern = f"^({_0}|{_10000000000000000}|{_1_9999999999999999})$"
++        nor_int_pattern = f"^({_0}|{_10000000000000000}|{_1_9999999999999999})$"
+ 
+         str_dec_pattern = "^[零一二三四五六七八九]{0,15}[一二三四五六七八九]$"
+         nor_dec_pattern = "^[零一二三四五六七八九]{0,16}$"
+@@ -213,9 +220,16 @@ class Cn2An(object):
+                 if result1:
+                     if result1.group() == integer_data:
+                         if integer_data[-1] in UNIT_CN2AN.keys():
++                            # int() so that a plain-integer input such as "123" keeps
++                            # returning an int instead of the float of int * float
+                             output = int(Decimal(integer_data[:-1]) * UNIT_CN2AN[integer_data[-1]])
+                         else:
++                            # 10.1 -> 10.1 but 12.0 / 12.00 -> 12: an integral value
++                            # must not come back as float just because it was written
++                            # with a decimal point
+                             output = float(integer_data)
++                            if output.is_integer():
++                                output = int(output)
+                         return 0, output, None, None
+ 
+                 integer_data = re.sub(r"\d+", lambda x: self.__smart_number_convert(x.group()), integer_data)
+diff --git a/cn2an/conf.py b/cn2an/conf.py
+index 547978b..1f960fd 100644
+--- a/cn2an/conf.py
++++ b/cn2an/conf.py
+@@ -80,6 +80,7 @@ UNIT_LOW_ORDER_AN2CN = [
+     "十",
+     "百",
+     "千",
++    "亿",
+ ]
+ UNIT_UP_ORDER_AN2CN = [
+     "",
+@@ -98,7 +99,12 @@ UNIT_UP_ORDER_AN2CN = [
+     "拾",
+     "佰",
+     "仟",
++    "亿",
+ ]
++# 10**16 = 亿亿. "亿亿" is two characters, so it is only usable as a regex-level
++# unit; a single-unit iteration such as __integer_convert still picks the last "亿"
++# of "亿亿" (=10**8) and ten_thousand_unit then squares it, which yields 10**16.
++MAX_UNIT_PATTERN_CN = "亿亿"
+ STRICT_CN_NUMBER = {
+     "零": "零",
+     "一": "一壹",
+diff --git a/cn2an/transform.py b/cn2an/transform.py
+index 2050353..3e4e701 100644
+--- a/cn2an/transform.py
++++ b/cn2an/transform.py
+@@ -27,6 +27,11 @@ class Transform(object):
+         self.half_pattern = re.compile(f"半(?={self.measure_words})")
+ 
+     def transform(self, inputs: str, method: str = "cn2an", direct: bool = False) -> str:
++        # cn2an()/an2cn() raise ValueError for unusable input; transform() used to
++        # leak AttributeError / TypeError from deep inside re.sub instead.
++        if not isinstance(inputs, str):
++            raise ValueError(f"输入数据必须为字符串，当前类型：{type(inputs).__name__}！")
++
+         if method == "cn2an":
+             if direct:
+                 return self.direct_cn_pattern.sub(
+diff --git a/test_defects_regression.py b/test_defects_regression.py
+new file mode 100644
+index 0000000..a9847e4
+--- /dev/null
++++ b/test_defects_regression.py
+@@ -0,0 +1,183 @@
++"""Regression tests for four confirmed defects in cn2an 0.5.24.
++
++Every assertion below was checked against the upstream commit 7c9ba07 first:
++the ones that fail there are the reproduced bugs, the ones that pass there are
++guard rails that must not regress.
++"""
++import sys
++from pathlib import Path
++
++import pytest
++
++ROOT = Path(__file__).resolve().parent
++if str(ROOT) not in sys.path:
++    sys.path.insert(0, str(ROOT))
++
++from cn2an.an2cn import An2Cn  # noqa: E402
++from cn2an.cn2an import Cn2An  # noqa: E402
++from cn2an.transform import Transform  # noqa: E402
++
++ac = An2Cn()
++ca = Cn2An()
++tr = Transform()
++
++
++# --------------------------------------------------------------------------
++# D1  an2cn(..., "rmb") loses the 分 as soon as the fraction reaches 17+
++#     characters: the 16-character cut happens before the cent is decided.
++# --------------------------------------------------------------------------
++@pytest.mark.parametrize(
++    "value, expected",
++    [
++        # --- guard rails: digit mapping verified against upstream output
++        ("5.559", "伍元伍角伍分"),
++        ("5.999", "伍元玖角玖分"),
++        ("1.01", "壹元零壹分"),
++        ("1.10", "壹元壹角"),
++        ("7.5678", "柒元伍角陆分"),
++        ("12.123456789012345", "壹拾贰元壹角贰分"),
++        # --- reproduced defect: a 17+ digit run of 9s lost the carry into 元
++        #     (upstream: 玖角玖分 -> value 0.99 instead of 1.00)
++        ("0.999999999999999999", "壹元整"),
++        ("10.999999999999999999", "壹拾壹元整"),
++        ("100.999999999999999999", "壹佰零壹元整"),
++    ],
++)
++def test_rmb_long_fraction_keeps_cents(value, expected):
++    assert ac.an2cn(value, "rmb") == expected
++
++
++def test_rmb_short_fraction_unchanged():
++    """Fractions of at most 16 digits must stay byte-identical to upstream."""
++    assert ac.an2cn("1.045", "rmb") == "壹元零肆分"
++    assert ac.an2cn("0.4321", "rmb") == "肆角叁分"
++    assert ac.an2cn("1000054.4321", "rmb") == "壹佰万零伍拾肆元肆角叁分"
++    assert ac.an2cn("5.559", "rmb") == "伍元伍角伍分"
++    assert ac.an2cn("5.999", "rmb") == "伍元玖角玖分"
++    assert ac.an2cn("12.123456789012345", "rmb") == "壹拾贰元壹角贰分"
++
++
++def test_rmb_long_run_of_nines_carries():
++    """A 玖角玖分 pair followed by 9s past the 16-char cut must carry into 元."""
++    for total in range(17, 25):
++        value = "0." + "9" * total
++        assert ac.an2cn(value, "rmb") == "壹元整", value
++    for yuan in (1, 9, 99, 1000, 1000054):
++        value = f"{yuan}." + "9" * 18
++        text = ac.an2cn(value, "rmb")
++        assert text.endswith("元整"), (value, text)
++        assert ca.cn2an(text, "strict") == yuan + 1
++
++
++# --------------------------------------------------------------------------
++# D2  cn2an(..., "smart") returns a *float* for a plain integer string while
++#     every other path returns an int; JSON output flips 123 -> 123.0.
++# --------------------------------------------------------------------------
++@pytest.mark.parametrize("value, expected", [
++    ("123", 123), ("0", 0), ("100", 100), ("１２３", 123), ("00012", 12),
++    ("10.1", 10.1), ("-10.1", -10.1), ("10.1万", 101000), ("16.4亿", 1640000000),
++])
++def test_smart_plain_digits_value(value, expected):
++    assert ca.cn2an(value, "smart") == expected
++
++
++@pytest.mark.parametrize("value", ["123", "0", "100", "１２３", "00012", "007"])
++def test_smart_plain_integer_returns_int(value):
++    """A plain integer string must not come back as float (JSON would print 123.0)."""
++    result = ca.cn2an(value, "smart")
++    assert isinstance(result, int) and not isinstance(result, bool), result
++
++
++@pytest.mark.parametrize("value, expected", [("1.0", 1), ("0.0", 0)])
++def test_smart_decimal_that_is_integral(value, expected):
++    """A decimal spelling that lands on a whole number is an int, like 1.0 -> 1."""
++    result = ca.cn2an(value, "smart")
++    assert result == expected
++    assert isinstance(result, int) and not isinstance(result, bool)
++
++
++def test_smart_and_strict_agree_on_type_for_the_same_number():
++    smart = ca.cn2an("1720", "smart")
++    strict = ca.cn2an("一千七百二十", "strict")
++    assert isinstance(smart, int) and isinstance(strict, int)
++    assert smart == strict == 1720
++
++
++# --------------------------------------------------------------------------
++# D3  transform() lets AttributeError / TypeError escape for non-str input,
++#     while cn2an()/an2cn() raise ValueError with a message.
++# --------------------------------------------------------------------------
++@pytest.mark.parametrize("value", [None, 123, 1.5, True, b"123", ["1"], {"a": 1}])
++@pytest.mark.parametrize("method", ["cn2an", "an2cn"])
++def test_transform_rejects_non_str_with_value_error(value, method):
++    with pytest.raises(ValueError):
++        tr.transform(value, method)
++
++
++@pytest.mark.parametrize("method", ["cn2an", "an2cn"])
++def test_transform_still_accepts_str(method):
++    assert isinstance(tr.transform("小王捡了100块钱", method), str)
++
++
++def test_transform_bad_method_still_raises_value_error():
++    with pytest.raises(ValueError):
++        tr.transform("123", "nope")
++
++
++# --------------------------------------------------------------------------
++# D4  documented boundary 10**16 (README 3.2).  an2cn rejected it and cn2an
++#     stopped at 9999万亿, so neither direction could reach the stated maximum.
++# --------------------------------------------------------------------------
++@pytest.mark.parametrize("value, low", [
++    (10 ** 16, "一亿亿"),
++    (10 ** 12, "一万亿"),
++    (10 ** 16 - 1, "九千九百九十九万九千九百九十九亿九千九百九十九万九千九百九十九"),
++])
++def test_an2cn_accepts_documented_maximum(value, low):
++    assert ac.an2cn(value, "low") == low
++
++
++def test_an2cn_maximum_other_modes():
++    assert ac.an2cn(10 ** 16, "up") == "壹亿亿"
++    assert ac.an2cn(10 ** 16, "rmb") == "壹亿亿元整"
++
++
++@pytest.mark.parametrize("value", [10 ** 16, -10 ** 16])
++def test_an2cn_boundary_round_trip(value):
++    """The documented maximum must survive an2cn -> cn2an."""
++    assert ca.cn2an(ac.an2cn(value, "low"), "strict") == value
++
++
++@pytest.mark.parametrize("value", [0, 1, 9, 99, 1000, 10 ** 8, 10 ** 12,
++                                   10 ** 16 - 2, 10 ** 16 - 1, 9876543298765432])
++def test_an2cn_round_trip_below_the_boundary(value):
++    assert ca.cn2an(ac.an2cn(value, "low"), "strict") == value
++
++
++def test_cn2an_rejects_beyond_the_documented_boundary():
++    """亿亿 is only allowed with a 一 multiplier, so 10**17 and above stay out."""
++    for text in ("九亿亿", "十亿亿", "二亿亿"):
++        with pytest.raises(ValueError):
++            ca.cn2an(text, "strict")
++
++
++@pytest.mark.parametrize("value", [10 ** 17, 10 ** 18])
++def test_an2cn_still_rejects_above_the_boundary(value):
++    with pytest.raises(ValueError):
++        ac.an2cn(value, "low")
++
++
++@pytest.mark.parametrize("text, expected", [
++    ("一亿亿", 10 ** 16),
++    ("壹亿亿", 10 ** 16),
++    ("一万亿", 10 ** 12),
++    ("九千九百九十九万九千九百九十九亿九千九百九十九万九千九百九十九", 10 ** 16 - 1),
++])
++def test_cn2an_parses_yi_yi(text, expected):
++    assert ca.cn2an(text, "strict") == expected
++
++
++def test_cn2an_yi_yi_in_all_modes():
++    assert ca.cn2an("一亿亿", "normal") == 10 ** 16
++    assert ca.cn2an("一亿亿", "smart") == 10 ** 16
++    assert ca.cn2an("负一亿亿", "strict") == -(10 ** 16)

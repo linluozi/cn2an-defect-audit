@@ -1,0 +1,362 @@
+[
+  {
+    "defect": "D1",
+    "call": "an2cn('0.999999999999999999', 'rmb')",
+    "upstream": {
+      "value": "玖角玖分",
+      "type": "str"
+    },
+    "patched": {
+      "value": "壹元整",
+      "type": "str"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D1",
+    "call": "an2cn('10.999999999999999999', 'rmb')",
+    "upstream": {
+      "value": "壹拾元玖角玖分",
+      "type": "str"
+    },
+    "patched": {
+      "value": "壹拾壹元整",
+      "type": "str"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D1",
+    "call": "an2cn('100.999999999999999999', 'rmb')",
+    "upstream": {
+      "value": "壹佰元玖角玖分",
+      "type": "str"
+    },
+    "patched": {
+      "value": "壹佰零壹元整",
+      "type": "str"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D1",
+    "call": "an2cn('0.99', 'rmb')",
+    "upstream": {
+      "value": "玖角玖分",
+      "type": "str"
+    },
+    "patched": {
+      "value": "玖角玖分",
+      "type": "str"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D1",
+    "call": "an2cn('5.999', 'rmb')",
+    "upstream": {
+      "value": "伍元玖角玖分",
+      "type": "str"
+    },
+    "patched": {
+      "value": "伍元玖角玖分",
+      "type": "str"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D1",
+    "call": "an2cn('1.045', 'rmb')",
+    "upstream": {
+      "value": "壹元零肆分",
+      "type": "str"
+    },
+    "patched": {
+      "value": "壹元零肆分",
+      "type": "str"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D1",
+    "call": "an2cn('0.4321', 'rmb')",
+    "upstream": {
+      "value": "肆角叁分",
+      "type": "str"
+    },
+    "patched": {
+      "value": "肆角叁分",
+      "type": "str"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('123', 'smart')",
+    "upstream": {
+      "value": 123.0,
+      "type": "float"
+    },
+    "patched": {
+      "value": 123,
+      "type": "int"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('0', 'smart')",
+    "upstream": {
+      "value": 0.0,
+      "type": "float"
+    },
+    "patched": {
+      "value": 0,
+      "type": "int"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('007', 'smart')",
+    "upstream": {
+      "value": 7.0,
+      "type": "float"
+    },
+    "patched": {
+      "value": 7,
+      "type": "int"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('１２３', 'smart')",
+    "upstream": {
+      "value": 123.0,
+      "type": "float"
+    },
+    "patched": {
+      "value": 123,
+      "type": "int"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('1.0', 'smart')",
+    "upstream": {
+      "value": 1.0,
+      "type": "float"
+    },
+    "patched": {
+      "value": 1,
+      "type": "int"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('1.5', 'smart')",
+    "upstream": {
+      "value": 1.5,
+      "type": "float"
+    },
+    "patched": {
+      "value": 1.5,
+      "type": "float"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('10.1万', 'smart')",
+    "upstream": {
+      "value": 101000,
+      "type": "int"
+    },
+    "patched": {
+      "value": 101000,
+      "type": "int"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D2",
+    "call": "cn2an('一百二十三', 'smart')",
+    "upstream": {
+      "value": 123,
+      "type": "int"
+    },
+    "patched": {
+      "value": 123,
+      "type": "int"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D3",
+    "call": "transform(None, 'cn2an')",
+    "upstream": {
+      "error": "AttributeError: 'NoneType' object has no attribute 'replace'"
+    },
+    "patched": {
+      "error": "ValueError: 输入数据必须为字符串，当前类型：NoneType！"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D3",
+    "call": "transform('__INT__123', 'cn2an')",
+    "upstream": {
+      "error": "AttributeError: 'int' object has no attribute 'replace'"
+    },
+    "patched": {
+      "error": "ValueError: 输入数据必须为字符串，当前类型：int！"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D3",
+    "call": "transform(1.5, 'cn2an')",
+    "upstream": {
+      "error": "AttributeError: 'float' object has no attribute 'replace'"
+    },
+    "patched": {
+      "error": "ValueError: 输入数据必须为字符串，当前类型：float！"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D3",
+    "call": "transform(True, 'cn2an')",
+    "upstream": {
+      "error": "AttributeError: 'bool' object has no attribute 'replace'"
+    },
+    "patched": {
+      "error": "ValueError: 输入数据必须为字符串，当前类型：bool！"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D3",
+    "call": "transform('__BYTES__123', 'cn2an')",
+    "upstream": {
+      "error": "TypeError: a bytes-like object is required, not 'str'"
+    },
+    "patched": {
+      "error": "ValueError: 输入数据必须为字符串，当前类型：bytes！"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D3",
+    "call": "transform('100块', 'cn2an')",
+    "upstream": {
+      "value": "100块",
+      "type": "str"
+    },
+    "patched": {
+      "value": "100块",
+      "type": "str"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D4",
+    "call": "an2cn('__INT__10000000000000000', 'low')",
+    "upstream": {
+      "error": "ValueError: 超出数据范围，最长支持 16 位"
+    },
+    "patched": {
+      "value": "一亿亿",
+      "type": "str"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D4",
+    "call": "an2cn('__INT__9999999999999999', 'low')",
+    "upstream": {
+      "value": "九千九百九十九万九千九百九十九亿九千九百九十九万九千九百九十九",
+      "type": "str"
+    },
+    "patched": {
+      "value": "九千九百九十九万九千九百九十九亿九千九百九十九万九千九百九十九",
+      "type": "str"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D4",
+    "call": "an2cn('__INT__1000000000000', 'low')",
+    "upstream": {
+      "value": "一万亿",
+      "type": "str"
+    },
+    "patched": {
+      "value": "一万亿",
+      "type": "str"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D4",
+    "call": "an2cn('__INT__100000000000000000', 'low')",
+    "upstream": {
+      "error": "ValueError: 超出数据范围，最长支持 16 位"
+    },
+    "patched": {
+      "error": "ValueError: 超出数据范围，最长支持 17 位"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D4",
+    "call": "cn2an('一亿亿', 'strict')",
+    "upstream": {
+      "error": "ValueError: 不符合格式的数据：一亿亿"
+    },
+    "patched": {
+      "value": 10000000000000000,
+      "type": "int"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D4",
+    "call": "cn2an('壹亿亿', 'strict')",
+    "upstream": {
+      "error": "ValueError: 不符合格式的数据：壹亿亿"
+    },
+    "patched": {
+      "value": 10000000000000000,
+      "type": "int"
+    },
+    "changed": true
+  },
+  {
+    "defect": "D4",
+    "call": "cn2an('一万亿', 'strict')",
+    "upstream": {
+      "value": 1000000000000,
+      "type": "int"
+    },
+    "patched": {
+      "value": 1000000000000,
+      "type": "int"
+    },
+    "changed": false
+  },
+  {
+    "defect": "D4",
+    "call": "cn2an('九亿亿', 'strict')",
+    "upstream": {
+      "error": "ValueError: 不符合格式的数据：九亿亿"
+    },
+    "patched": {
+      "error": "ValueError: 不符合格式的数据：九亿亿"
+    },
+    "changed": false
+  }
+]
